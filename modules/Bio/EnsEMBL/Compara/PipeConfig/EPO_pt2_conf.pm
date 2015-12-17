@@ -237,12 +237,13 @@ sub pipeline_analyses {
                 },
             },
 
+            # Copy all the untrimmed anchor_aligns
             {   -logic_name => 'reuse_anchor_align',
                 -module     => 'Bio::EnsEMBL::Compara::RunnableDB::CopyDataWithJoin',
                 -parameters => {
                     'db_conn'    => '#reuse_db#',
                     'table'      => 'anchor_align',
-                    'inputquery' => 'SELECT anchor_align.* FROM anchor_align JOIN dnafrag USING (dnafrag_id) WHERE genome_db_id = #genome_db_id# AND method_link_species_set_id = #mapping_mlssid#',
+                    'inputquery' => 'SELECT anchor_align.* FROM anchor_align JOIN dnafrag USING (dnafrag_id) WHERE genome_db_id = #genome_db_id# AND method_link_species_set_id = #mapping_mlssid# AND untrimmed_anchor_align_id IS NULL',
                 },
             },
 
@@ -310,7 +311,7 @@ sub pipeline_analyses {
             {   -logic_name => 'trim_anchor_align_factory',
                 -module     => 'Bio::EnsEMBL::Hive::RunnableDB::JobFactory',
                 -parameters => {
-                                'inputquery'      => "SELECT DISTINCT(anchor_id) AS anchor_id FROM anchor_align WHERE anchor_status IS NULL",
+                                'inputquery'      => "SELECT DISTINCT(anchor_id) AS anchor_id FROM anchor_align WHERE untrimmed_anchor_align_id IS NULL AND is_overlapping = 0",
                                },  
                 -flow_into => {
                                2 => [ 'trim_anchor_align' ],
