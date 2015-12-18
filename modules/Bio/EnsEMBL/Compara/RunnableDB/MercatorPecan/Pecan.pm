@@ -82,7 +82,6 @@ package Bio::EnsEMBL::Compara::RunnableDB::MercatorPecan::Pecan;
 use strict;
 use warnings;
 use Bio::EnsEMBL::Utils::Exception qw(throw);
-use Bio::EnsEMBL::Utils::SqlHelper;
 use Bio::EnsEMBL::Analysis;
 use Bio::EnsEMBL::Analysis::Runnable::Pecan;
 use Bio::EnsEMBL::Analysis::Runnable::Ortheus;
