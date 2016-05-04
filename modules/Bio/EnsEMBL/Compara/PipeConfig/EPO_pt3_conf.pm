@@ -504,6 +504,7 @@ return
                 'mlss_id'   => $self->o('epo_mlss_id'),
                 'compara_db' => $self->pipeline_url,
             },
+            -flow_into  => [ 'register_mlss' ],
         },
 
         {   -logic_name => 'email_stats_report',
@@ -514,6 +515,14 @@ return
                 'subject'   => "EPO Pipeline( #expr(\$self->hive_pipeline->display_name)expr# ) has completed", 
             }
 
+        },
+
+        {   -logic_name    => 'register_mlss',
+            -module        => 'Bio::EnsEMBL::Compara::RunnableDB::RegisterMLSS',
+            -parameters    => {
+                'master_db'     => '#compara_master#',
+                'mlss_id'       => '#epo_mlss_id#',
+            },
         },
 
 ];
