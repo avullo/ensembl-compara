@@ -72,7 +72,7 @@ sub default_options {
     return {
     	%{$self->SUPER::default_options},
 
-        'pipeline_name' => $self->o('species_set_name').'_epo_anchor_mapping',
+        'pipeline_name' => $self->o('species_set_name').'_epo_anchor_mapping_'.$self->o('rel_with_suffix'),
 
         'mapping_params'    => { bestn=>11, gappedextension=>"no", softmasktarget=>"no", percent=>75, showalignment=>"no", model=>"affine:local", },
 
