@@ -26,6 +26,8 @@ package Bio::EnsEMBL::Compara::Production::EPOanchors::LoadAnchorSequence;
 use strict;
 use warnings;
 
+use Bio::EnsEMBL::Compara::Utils::CopyData qw(:insert);
+
 use base ('Bio::EnsEMBL::Compara::RunnableDB::BaseRunnable');
 
 sub param_defaults {
@@ -73,11 +75,9 @@ sub fetch_input {
 }
 
 sub write_output {
-	my ($self) = @_;
-	my $anchor_seq_adaptor = $self->compara_dba()->get_adaptor("AnchorSeq");
-	foreach my $this_anchor(@{ $self->param('anchor') }){
-		$anchor_seq_adaptor->store( @{ $this_anchor } );
-	}
+    my ($self) = @_;
+
+    bulk_insert($self->compara_dba->dbc, 'anchor_sequence', $self->param('anchor'), [qw(anchor_id dnafrag_id start end strand method_link_species_set_id sequence length)]);
 }
 
 1;
