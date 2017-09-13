@@ -31,14 +31,10 @@ BEGIN {
 # check module can be seen and compiled
 use_ok('Bio::EnsEMBL::Compara::RunnableDB::PairAligner::ParsePairAlignerConf'); 
 
-# load test db
+# # load test db
 my $multi_db = Bio::EnsEMBL::Test::MultiTestDB->new('parse_pair_aligner_conf');
 my $dba = $multi_db->get_DBAdaptor('compara');
 my $dbc = Bio::EnsEMBL::Hive::DBSQL::DBConnection->new(-dbconn => $dba->dbc);
-
-# my $master_db_url = 'mysql://ensadmin:ensembl@mysql-ens-compara-prod-3:4523/parse_pa_conf_test';
-# my $dba = Bio::EnsEMBL::Compara::DBSQL::DBAdaptor->go_figure_compara_dba( $master_db_url );
-
 my $gdb_adaptor = $dba->get_GenomeDBAdaptor;
 
 # setup

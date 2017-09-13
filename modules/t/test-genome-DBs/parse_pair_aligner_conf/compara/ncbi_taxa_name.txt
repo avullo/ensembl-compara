@@ -1,0 +1,192 @@
+9606	Homo sapiens	scientific name
+9606	Homo sapiens Linnaeus, 1758	authority
+9606	human	genbank common name
+9606	man	common name
+9605	Homo	scientific name
+9605	Homo Linnaeus, 1758	authority
+9605	humans	common name
+207598	Homininae	scientific name
+207598	Homo/Pan/Gorilla group	synonym
+207598	Hominines	ensembl alias name
+207598	8.8	ensembl timetree mya
+9604	Hominidae	scientific name
+9604	Hominidae Gray, 1825	authority
+9604	Pongidae	synonym
+9604	great apes	genbank common name
+9604	Great apes	ensembl alias name
+9604	15.7	ensembl timetree mya
+314295	Hominoidea	scientific name
+314295	ape	common name
+314295	apes	genbank common name
+314295	Apes	ensembl alias name
+314295	20.4	ensembl timetree mya
+9526	Catarrhini	scientific name
+9526	Apes and Old World monkeys	ensembl alias name
+9526	29.0	ensembl timetree mya
+314293	Anthropoidea	synonym
+314293	Simiiformes	scientific name
+314293	Simians	ensembl alias name
+314293	42.6	ensembl timetree mya
+376913	Haplorrhini	scientific name
+376913	Dry-nosed primates	ensembl alias name
+376913	65.2	ensembl timetree mya
+9443	Primata	synonym
+9443	Primates	scientific name
+9443	Primates Linnaeus, 1758	authority
+9443	primate	equivalent name
+9443	primates	blast name
+9443	Primates	ensembl alias name
+9443	74.0	ensembl timetree mya
+314146	Euarchontoglires	scientific name
+314146	Primates and Rodents	ensembl alias name
+314146	92.3	ensembl timetree mya
+1437010	Boreoeutheria	scientific name
+1437010	Boreotheria	synonym
+1437010	Placental mammals	ensembl alias name
+1437010	100	ensembl timetree mya
+9347	Eutheria	scientific name
+9347	Placentalia	synonym
+9347	eutherian mammals	common name
+9347	placental mammals	common name
+9347	placentals	genbank common name
+9347	placentals	blast name
+9347	Placental mammals	ensembl alias name
+9347	104.2	ensembl timetree mya
+32525	Theria	scientific name
+32525	Theria Parker & Haswell, 1897	authority
+32525	Marsupials and Placental mammals	ensembl alias name
+32525	162.6	ensembl timetree mya
+40674	Mammalia	scientific name
+40674	mammals	genbank common name
+40674	mammals	blast name
+40674	Mammals	ensembl alias name
+40674	167.4	ensembl timetree mya
+32524	Amniota	scientific name
+32524	amniotes	genbank common name
+32524	Amniotes	ensembl alias name
+32524	296.0	ensembl timetree mya
+32523	Tetrapoda	scientific name
+32523	tetrapods	genbank common name
+32523	Tetrapods	ensembl alias name
+32523	371.2	ensembl timetree mya
+1338369	Dipnotetrapodomorpha	scientific name
+8287	Sarcopterygii	scientific name
+8287	Lobe-finned fish	ensembl alias name
+8287	414.9	ensembl timetree mya
+117571	Euteleostomi	scientific name
+117571	bony vertebrates	genbank common name
+117571	40673	merged_taxon_id
+117571	Bony vertebrates	ensembl alias name
+117571	441	ensembl timetree mya
+117570	Teleostomi	scientific name
+7776	Gnathostomata	scientific name
+7776	jawed vertebrates	genbank common name
+7742	Vertebrata	scientific name
+7742	Vertebrata Cuvier, 1812	authority
+7742	vertebrates	genbank common name
+7742	vertebrates	blast name
+7742	Vertebrates	ensembl alias name
+7742	535.7	ensembl timetree mya
+89593	Craniata	scientific name
+7711	Chordata	scientific name
+7711	chordates	genbank common name
+7711	chordates	blast name
+7711	Chordates	ensembl alias name
+7711	722.5	ensembl timetree mya
+33511	Deuterostomia	scientific name
+33511	deuterostomes	common name
+33213	Bilateria	scientific name
+33213	Bilateral animals	ensembl alias name
+33213	937.5	ensembl timetree mya
+6072	Eumetazoa	scientific name
+33208	Animalia	synonym
+33208	Metazoa	scientific name
+33208	animals	blast name
+33208	metazoans	genbank common name
+33208	multicellular animals	common name
+33154	Fungi/Metazoa group	synonym
+33154	Opisthokonta	scientific name
+33154	Opisthokonta Cavalier-Smith 1987	authority
+33154	opisthokonts	synonym
+33154	Animals and Fungi	ensembl alias name
+33154	1215.8	ensembl timetree mya
+2759	Eucarya	synonym
+2759	Eucaryotae	synonym
+2759	Eukarya	synonym
+2759	Eukaryota	scientific name
+2759	Eukaryotae	synonym
+2759	eucaryotes	genbank common name
+2759	eukaryotes	common name
+2759	eukaryotes	blast name
+131567	biota	synonym
+131567	cellular organisms	scientific name
+1	all	synonym
+1	root	scientific name
+1	2017-06-05 18:26:27	import date
+7719	Ascidia intestinalis	synonym
+7719	Ciona intestinalis	scientific name
+7719	Ciona intestinalis (Linnaeus, 1767)	authority
+7719	sea vase	common name
+7719	vase tunicate	genbank common name
+7719	yellow sea squirt	common name
+7718	Ciona	scientific name
+7718	Ciona sea squirts	ensembl alias name
+7718	100	ensembl timetree mya
+7717	Cionidae	scientific name
+7716	Phlebobranchia	scientific name
+183770	Enterogona	scientific name
+7713	Ascidiacea	scientific name
+7713	sea squirts	genbank common name
+7712	Tunicata	scientific name
+7712	Urochordata	synonym
+7712	tunicates	genbank common name
+7712	tunicates	blast name
+9685	Felis catus	scientific name
+9685	Felis catus Linnaeus, 1758	authority
+9685	Felis domesticus	synonym
+9685	Felis silvestris catus	synonym
+9685	Korat cats	includes
+9685	cat	common name
+9685	cats	common name
+9685	domestic cat	genbank common name
+9685	36475	merged_taxon_id
+9682	Felis	scientific name
+338152	Felinae	scientific name
+9681	Felidae	scientific name
+9681	cat family	genbank common name
+379583	Feliformia	scientific name
+33554	Carnivora	scientific name
+33554	carnivores	genbank common name
+33554	carnivores	blast name
+33554	Carnivores	ensembl alias name
+33554	55.1	ensembl timetree mya
+314145	Laurasiatheria	scientific name
+314145	Laurasiatherian mammals	ensembl alias name
+314145	91.7	ensembl timetree mya
+9615	Canis canis	synonym
+9615	Canis domesticus	synonym
+9615	Canis familiaris	synonym
+9615	Canis lupus familiaris	scientific name
+9615	beagle dog	includes
+9615	beagle dogs	includes
+9615	dog	genbank common name
+9615	dogs	common name
+9612	Canis lupus	scientific name
+9612	Canis lupus Linnaeus, 1758	authority
+9612	gray wolf	genbank common name
+9612	grey wolf	common name
+9611	Canis	scientific name
+9608	Canidae	scientific name
+9608	dog, coyote, wolf, fox	genbank common name
+379584	Caniformia	scientific name
+379584	Caniforms	ensembl alias name
+379584	45.0	ensembl timetree mya
+9598	Chimpansee troglodytes	misspelling
+9598	Pan troglodytes	scientific name
+9598	chimpanzee	genbank common name
+9596	Pan	scientific name
+9596	Pan sp. WO2005014654	includes
+9596	Pan sp. WO2007026120	includes
+9596	chimpanzees	genbank common name
+9596	317028	merged_taxon_id
+9596	445518	merged_taxon_id

@@ -435,7 +435,10 @@ sub get_pair_aligner {
 
 sub set_pair_aligner_options {
 	# master_db_url and default_parameters mostly to be used for testing
-	my ($self, $pair_aligner, $ref_genome_db, $non_ref_genome_db, $master_db_url, $default_parameters) = @_;
+	my ($self, $pair_aligner, $ref_genome_db, $non_ref_genome_db) = @_;
+
+	my $master_db = $self->param('master_db');
+	my $default_parameters = $self->param('default_parameters');
 
 	# legacy code - not willing to touch #
 	if ( defined $pair_aligner->{'analysis_template'} ) {
@@ -449,13 +452,11 @@ sub set_pair_aligner_options {
     #####################################
 
     # check master for species sets - only pairwise LASTZ species set is copied locally
-    my $master_db = $master_db_url || $self->param('master_db');
 	my $compara_dba = Bio::EnsEMBL::Compara::DBSQL::DBAdaptor->go_figure_compara_dba( $master_db );
 	my $gdb_adaptor = $compara_dba->get_GenomeDBAdaptor;
 
 	# check if static or dynamic params are being used
 	# static = string input; dynamic = hash ref input
-	my $default_parameters = $default_parameters || $self->param('default_parameters');
 	unless ( ref($default_parameters) ) { # input is not a ref - assume string and set params
 		$pair_aligner->{'analysis_template'}{'parameters'}{'options'} = $default_parameters;
 		return;
