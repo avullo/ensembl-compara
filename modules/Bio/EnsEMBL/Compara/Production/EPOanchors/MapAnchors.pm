@@ -30,9 +30,7 @@ $exonate_anchors->write_output(); writes to database
 =head1 DESCRIPTION
 
 Given a database with anchor sequences and a target genome. This modules exonerates 
-the anchors against the target genome. The required information (anchor batch size,
-target genome file, exonerate parameters are provided by the analysis, analysis_job 
-and analysis_data tables  
+the anchors against the target genome.
 
 =head1 AUTHOR
 
@@ -62,12 +60,6 @@ use Data::Dumper;
 
 use base ('Bio::EnsEMBL::Compara::RunnableDB::BaseRunnable');
 
-sub param_defaults {
-    return {
-        'mapping_exe'       => '/usr/local/ensembl/bin/exonerate-1.0.0',
-        'mapping_params'    => { bestn=>11, gappedextension=>"no", softmasktarget=>"no", percent=>75, showalignment=>"no", model=>"affine:local", },
-    }
-}
 
 sub pre_cleanup {
 	my ($self) = @_;
@@ -79,7 +71,7 @@ sub fetch_input {
         $self->dbc->disconnect_if_idle();
         # FIXME : we only need a DBConnection here, not a Compara DBAdaptor
         my $anchor_dba = Bio::EnsEMBL::Compara::DBSQL::DBAdaptor->go_figure_compara_dba( $self->param('compara_anchor_db') );
-	my $genome_db_file = $self->param('genome_db_file');
+	my $genome_db_file = $self->param_required('genome_db_file');
 	my $sth = $anchor_dba->dbc->prepare("SELECT anchor_id, sequence FROM anchor_sequence WHERE anchor_id BETWEEN  ? AND ?");
         my $min_anc_id = $self->param('min_anchor_id');
         my $max_anc_id = $self->param('max_anchor_id');
@@ -102,7 +94,7 @@ sub run {
 	my $query_file = $self->param_required('query_file');
 	my $target_file = $self->param_required('genome_db_file');
 	my $option_st;
-	while( my ($opt, $opt_value) = each %{ $self->param('mapping_params') } ) {
+	while( my ($opt, $opt_value) = each %{ $self->param_required('mapping_params') } ) {
 		$option_st .= " --" . $opt . " " . $opt_value; 
 	}
 	my $command = join(" ", $program, $option_st, $query_file, $target_file); 
@@ -115,6 +107,8 @@ sub run {
 sub write_output {
 my ($self) = @_;
 my $anchor_align_adaptor = $self->compara_dba()->get_adaptor("AnchorAlign");
+my $dnafrag_adaptor = $self->compara_dba()->get_adaptor("DnaFrag");
+my $target_genome_db = $self->compara_dba()->get_adaptor("GenomeDB")->fetch_by_dbID( $self->param('genome_db_id') );
 $self->dbc->disconnect_if_idle();
 my $exo_fh = $self->param('out_file');
 my ($hits, $target2dnafrag);
@@ -136,9 +130,9 @@ while(my $mapping = <$exo_fh>){
 
 	foreach my $target_info (sort keys %{$target2dnafrag}) {
 		my($coord_sys, $dnafrag_name) = (split(":", $target_info))[0,2];
-		$target2dnafrag->{$target_info} = $anchor_align_adaptor->fetch_dnafrag_id(
-							$coord_sys, $dnafrag_name, $self->param('genome_db_id'));
-		die "no dnafrag_id found\n" unless($target2dnafrag->{$target_info});
+		$target2dnafrag->{$target_info} = $dnafrag_adaptor->fetch_all_by_GenomeDB_region($target_genome_db, $coord_sys, $dnafrag_name)->[0];
+		die "no dnafrag found\n" unless($target2dnafrag->{$target_info});
+		$target2dnafrag->{$target_info} = $target2dnafrag->{$target_info}->dbID;
 	}
 	my $hit_numbers = $self->merge_overlapping_target_regions($hits);
 	my $records = $self->process_exonerate_hits($hits, $target2dnafrag, $hit_numbers);	

@@ -57,7 +57,6 @@ use strict;
 use warnings;
 use File::Basename;
 use Bio::EnsEMBL::Utils::Exception qw(throw);
-use Bio::EnsEMBL::Utils::SqlHelper;
 use Bio::EnsEMBL::Compara::DnaFragRegion;
 use Bio::EnsEMBL::Compara::ConservationScore;
 use Bio::EnsEMBL::Compara::Graph::NewickParser;
@@ -88,6 +87,7 @@ sub param_defaults {
             'tree_string' => undef, #local parameter only
             'tree_file' => undef, #local parameter only
             'depth_threshold'=> undef,  #local parameter only
+            'constrained_element_method_link_type' => 'GERP_CONSTRAINED_ELEMENT',   # you shouldn't have to change this
     };
 }
 
@@ -387,7 +387,8 @@ sub run_gerp_v2 {
 
     $command .= " -f " . $self->param('mfa_file').$RATES_FILE_SUFFIX;
     # hack for birds
-    $command .= " -d 0.35" if $self->param('mlss')->name =~ /(sauropsid|bird)/i;
+    # check the database name too because the mlss doesn't have the right name at the moment
+    $command .= " -d 0.35" if ($self->param('mlss')->name =~ /(sauropsid|bird)/i) || ($self->dbc && ($self->dbc->dbname =~ /(sauropsid|bird)/i));
 
     #Calculate the neutral_rate of the species tree for use for those alignments where the default 
     #depth_threshold is too high to call any constrained elements (eg 3way birds)
@@ -482,14 +483,11 @@ sub _parse_cons_file {
 	$species_set = $self->param('species_set');
     }
 
-    #Hard code method_link_type for GERP_CONSTRAINED_ELEMENT
-    my $mlss = $mlssa->fetch_by_method_link_type_genome_db_ids('GERP_CONSTRAINED_ELEMENT', $species_set);
+    # Fetch the MLSS with the request method_link_type
+    my $mlss = $mlssa->fetch_by_method_link_type_genome_db_ids($self->param('constrained_element_method_link_type'), $species_set);
     unless ($mlss) {
 	throw("Invalid method_link_species_set\n");
     }
-
-#    my $mlss = $mlssa->fetch_by_method_link_type_genome_db_ids($self->param('constrained_element_method_link_type'), 
-#							       $self->param('species_set'));
 
     my $constrained_element_adaptor = $self->compara_dba->get_ConstrainedElementAdaptor;
     unless ($constrained_element_adaptor) {

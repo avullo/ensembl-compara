@@ -94,9 +94,9 @@ sub object_class {
   Description: Retrieves a genome db using the name of the species and
                the assembly version.
   Returntype : Bio::EnsEMBL::Compara::GenomeDB
-  Exceptions : thrown if GenomeDB of name $name and $assembly cannot be found
+  Exceptions : thrown if $name is not defined
   Caller     : general
-  Status      : Stable
+  Status     : Stable
 
 =cut
 
@@ -125,6 +125,27 @@ sub fetch_by_name_assembly {
     my $best = $self->_find_most_recent($all_matching_names);
     push @{$self->_id_cache->_additional_lookup()->{name_default_assembly}->{lc $name}}, $best->dbID;   # Cached for the next call
     return $best;
+}
+
+
+=head2 fetch_all_by_name
+
+  Arg [1]    : string $name
+  Example    : $gdb = $gdba->fetch_all_by_name_assembly('homo_sapiens');
+  Description: Retrieves all the genome db using the name of the species
+  Returntype : Arrayref of Bio::EnsEMBL::Compara::GenomeDB
+  Exceptions : thrown if $name is not defined
+  Caller     : general
+  Status     : Stable
+
+=cut
+
+sub fetch_all_by_name {
+    my ($self, $name) = @_;
+
+    throw("name argument is required") unless($name);
+
+    return $self->_id_cache->get_all_by_additional_lookup('name', lc $name);
 }
 
 

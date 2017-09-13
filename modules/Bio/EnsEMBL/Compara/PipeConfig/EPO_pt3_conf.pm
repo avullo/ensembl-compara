@@ -67,7 +67,8 @@ package Bio::EnsEMBL::Compara::PipeConfig::EPO_pt3_conf;
 use strict;
 use warnings;
 
-use Bio::EnsEMBL::Hive::Version 2.3;
+use Bio::EnsEMBL::Hive::Version 2.4;
+use Bio::EnsEMBL::Hive::PipeConfig::HiveGeneric_conf;           # Allow this particular config to use conditional dataflow
 
 use base ('Bio::EnsEMBL::Compara::PipeConfig::ComparaGeneric_conf');
 
@@ -85,14 +86,16 @@ sub default_options {
         # 'gerp_cs_mlss_id' => 50295,
         #'species_tree_file' => $self->o('ensembl_cvs_root_dir').'/ensembl-compara/scripts/pipeline/species_tree.7sauropsids.branch_len.nw',
 
+        'run_gerp' => 0,
+
         'enredo_params' => ' --min-score 0 --max-gap-length 200000 --max-path-dissimilarity 4 --min-length 10000 '.
     	'--min-regions 2 --min-anchors 3 --max-ratio 3 --simplify-graph 7 --bridges -o ',
 
         # Dump directory
-        'enredo_output_file' => $self->o('dump_dir').'enredo_'.$self->o('epo_mlss_id').'.out',
+        'enredo_output_file' => $self->o('dump_dir').'enredo_#epo_mlss_id#.out',
         'bed_dir' => $self->o('dump_dir').'bed_dir',
         'feature_dumps' => $self->o('dump_dir').'feature_dumps',
-        'enredo_mapping_file' => $self->o('dump_dir').'enredo_friendly.mlssid_'.$self->o('epo_mlss_id')."_".$self->o('rel_with_suffix'),
+        'enredo_mapping_file' => $self->o('dump_dir').'enredo_friendly.mlssid_#epo_mlss_id#_'.$self->o('rel_with_suffix'),
         'bl2seq_dump_dir' => $self->o('dump_dir').'bl2seq', # location for dumping sequences to determine strand (for bl2seq)
         'bl2seq_file_stem' => $self->o('bl2seq_dump_dir')."/bl2seq",
 
@@ -143,6 +146,7 @@ sub pipeline_wide_parameters {
 #		'gerp_ce_mlss_id' => $self->o('gerp_ce_mlss_id'),
 #		'gerp_cs_mlss_id' => $self->o('gerp_cs_mlss_id'),
 		'enredo_output_file' => $self->o('enredo_output_file'),
+                'run_gerp' => $self->o('run_gerp'),
 	};
 }
 
@@ -153,16 +157,6 @@ sub pipeline_analyses {
 return 
 [
 
-            {
-                -logic_name => 'check_pythonpath',
-                -module     => 'Bio::EnsEMBL::Hive::RunnableDB::SystemCmd',
-                -parameters => {
-                        'cmd' => q{python -c 'import ortheus'},
-                },
-                -input_ids => [{}],
-                -flow_into => [ 'copy_table_factory' ],
-            },
-
             {   -logic_name => 'copy_table_factory',
                 -module     => 'Bio::EnsEMBL::Hive::RunnableDB::JobFactory',
                 -parameters => {
@@ -170,6 +164,7 @@ return
                     'inputlist'    => [ 'method_link', 'genome_db', 'species_set', 'species_set_header', 'method_link_species_set', 'anchor_align', 'dnafrag', 'ncbi_taxa_name', 'ncbi_taxa_node' ],
                     'column_names' => [ 'table' ],
                 },
+                -input_ids => [{}],
                 -flow_into => {
                     '2->A' => { 'copy_table' => { 'src_db_conn' => '#db_conn#', 'table' => '#table#' } },
                     '1->A' => [ 'drop_ancestral_db', 'set_internal_ids' ],
@@ -268,7 +263,7 @@ return
 	-logic_name    => 'make_species_tree',
 	-module        => 'Bio::EnsEMBL::Compara::RunnableDB::MakeSpeciesTree',
 	-parameters    => {
-			'mlss_id' => $self->o('epo_mlss_id'),
+			'mlss_id' => '#epo_mlss_id#',
 			'blength_tree_file' => $self->o('species_tree_file'),		
 	},
         -flow_into     => [ 'dump_mappings_to_file' ],
@@ -353,14 +348,18 @@ return
 	-parameters => {
 		max_block_size => 1000000,
 		java_options => '-server -Xmx1000M',
-		jar_file => $self->o('pecan_jar'),
-		ortheus_mlssid => $self->o('epo_mlss_id'),
+                'pecan_exe_dir'     => $self->o('pecan_exe_dir'),
+                'exonerate_exe'     => $self->o('exonerate_exe'),
+                'java_exe'          => $self->o('java_exe'),
+                'ortheus_py'        => $self->o('ortheus_py'),
+                'ortheus_lib_dir'   => $self->o('ortheus_lib_dir'),
+                'ortheus_mlssid'    => '#epo_mlss_id#',
 	},
 	-module => 'Bio::EnsEMBL::Compara::RunnableDB::Ortheus',
 	-hive_capacity => 50,
 	-max_retry_count => 3,
 	-flow_into => {
-#		1 => [ 'gerp' ],
+                1 => WHEN( '#run_gerp#' => [ 'gerp' ] ),
 		-1 => [ 'ortheus_high_mem' ],
 	},
 },
@@ -370,14 +369,18 @@ return
 	-parameters => {
 		max_block_size=>1000000,
 		java_options=>'-server -Xmx2500M -Xms2000m',
-		jar_file => $self->o('pecan_jar'),
-		ortheus_mlssid => $self->o('epo_mlss_id'),
+                'pecan_exe_dir'     => $self->o('pecan_exe_dir'),
+                'exonerate_exe'     => $self->o('exonerate_exe'),
+                'java_exe'          => $self->o('java_exe'),
+                'ortheus_py'        => $self->o('ortheus_py'),
+                'ortheus_lib_dir'   => $self->o('ortheus_lib_dir'),
+                'ortheus_mlssid'    => '#epo_mlss_id#',
 	},
 	-module => 'Bio::EnsEMBL::Compara::RunnableDB::Ortheus',
 	-rc_name => 'mem7500',
 	-max_retry_count => 2,
 	-flow_into => { 
-#		1 => [ 'gerp' ], 
+                1 => WHEN( '#run_gerp#' => [ 'gerp' ] ),
 		-1 => [ 'ortheus_huge_mem' ],
 	},
 },
@@ -386,49 +389,55 @@ return
         -parameters => {
                 max_block_size=>1000000,
                 java_options=>'-server -Xmx6500M -Xms6000m',
-		jar_file => $self->o('pecan_jar'),
-                ortheus_mlssid => $self->o('epo_mlss_id'),
+                'pecan_exe_dir'     => $self->o('pecan_exe_dir'),
+                'exonerate_exe'     => $self->o('exonerate_exe'),
+                'java_exe'          => $self->o('java_exe'),
+                'ortheus_py'        => $self->o('ortheus_py'),
+                'ortheus_lib_dir'   => $self->o('ortheus_lib_dir'),
+                'ortheus_mlssid'    => '#epo_mlss_id#',
         },  
         -module => 'Bio::EnsEMBL::Compara::RunnableDB::Ortheus',
         -rc_name => 'hugemem',
 	-max_retry_count => 1,
-#        -flow_into => { 
-#		1 => [ 'gerp' ],
-#        },  
+	-flow_into => {
+                1 => WHEN( '#run_gerp#' => [ 'gerp' ] ),
+        },
 },
 # ------------------------------------- run gerp - this will populate the constrained_element and conservation_scores tables
-#{
-#	-logic_name => 'gerp',
-#        -module     => 'Bio::EnsEMBL::Compara::RunnableDB::GenomicAlignBlock::Gerp',
-#        -parameters => {
-#            'mlss_id' => $self->o('epo_mlss_id'), 
-#            'program_version' => $self->o('gerp_version'),
-#            'window_sizes' => $self->o('gerp_window_sizes'),
-#            'gerp_exe_dir' => $self->o('gerp_exe_dir'),
-#        },
-#	-max_retry_count => 3,
-#        -hive_capacity   => 50,
-#        -flow_into => { 
-#                -1 => [ 'gerp_high_mem' ],
-#        },
-#},
-#{
-#	-logic_name => 'gerp_high_mem',
-#        -module     => 'Bio::EnsEMBL::Compara::RunnableDB::GenomicAlignBlock::Gerp',
-#        -parameters => {
-#            'mlss_id' => $self->o('epo_mlss_id'), 
-#            'program_version' => $self->o('gerp_version'),
-#            'window_sizes' => $self->o('gerp_window_sizes'),
-#            'gerp_exe_dir' => $self->o('gerp_exe_dir'),
-#        },
-#        -hive_capacity   => 10,
-#	-rc_name => 'mem7500',
-#},
+{
+        -logic_name => 'gerp',
+        -module     => 'Bio::EnsEMBL::Compara::RunnableDB::GenomicAlignBlock::Gerp',
+        -parameters => {
+            'mlss_id' => '#epo_mlss_id#',
+            'program_version' => $self->o('gerp_version'),
+            'window_sizes' => $self->o('gerp_window_sizes'),
+            'gerp_exe_dir' => $self->o('gerp_exe_dir'),
+        },
+        -max_retry_count => 3,
+        -hive_capacity   => 50,
+        -failed_job_tolerance => 1,
+        -flow_into => {
+                -1 => [ 'gerp_high_mem' ],
+        },
+},
+{
+        -logic_name => 'gerp_high_mem',
+        -module     => 'Bio::EnsEMBL::Compara::RunnableDB::GenomicAlignBlock::Gerp',
+        -parameters => {
+            'mlss_id' => '#epo_mlss_id#',
+            'program_version' => $self->o('gerp_version'),
+            'window_sizes' => $self->o('gerp_window_sizes'),
+            'gerp_exe_dir' => $self->o('gerp_exe_dir'),
+        },
+        -hive_capacity   => 10,
+        -rc_name => 'mem7500',
+        -failed_job_tolerance => 100,
+},
 # ---------------------------------------------------[Update the max_align data in meta]--------------------------------------------------
             {  -logic_name => 'update_max_alignment_length',
                -module     => 'Bio::EnsEMBL::Compara::RunnableDB::GenomicAlignBlock::UpdateMaxAlignmentLength',
                 -parameters => {
-                               'method_link_species_set_id' => $self->o('epo_mlss_id'),
+                               'method_link_species_set_id' => '#epo_mlss_id#',
                               },  
                -flow_into => {
                               1 => [ 'create_neighbour_nodes_jobs_alignment' ],
@@ -449,7 +458,7 @@ return
             {   -logic_name => 'set_neighbour_nodes',
                 -module     => 'Bio::EnsEMBL::Compara::RunnableDB::EpoLowCoverage::SetNeighbourNodes',
                 -parameters => {
-                                'method_link_species_set_id' => $self->o('epo_mlss_id')
+                                'method_link_species_set_id' => '#epo_mlss_id#'
                                },  
                 -batch_size    => 10, 
                 -hive_capacity => 20, 
@@ -459,21 +468,19 @@ return
                 -module     => 'Bio::EnsEMBL::Hive::RunnableDB::Dummy',
                 -meadow_type=> 'LOCAL',
                 -flow_into => {
-                     1 => [ 'stats_factory' ],
-                },
-#                               '2->A' => {
-#                                     'conservation_score_healthcheck'  => [
-#                                                                           {'test' => 'conservation_jobs', 'logic_name'=>'gerp','method_link_type'=>'EPO_LOW_COVERAGE'}, 
-#                                                                           {'test' => 'conservation_scores','method_link_species_set_id'=>$self->o('gerp_cs_mlss_id')},
-#                                                                ],  
-#                                    },  
-#                               'A->1' => ['stats_factory'],
-#                              },  
-            },  
+                               '2->A' => WHEN( '#run_gerp#' => {
+                                     'conservation_score_healthcheck'  => [
+                                                                           {'test' => 'conservation_jobs', 'logic_name'=>'gerp','method_link_type'=>'EPO_LOW_COVERAGE'},
+                                                                           {'test' => 'conservation_scores','method_link_species_set_id'=>$self->o('gerp_cs_mlss_id')},
+                                                                ],
+                                    } ),
+                               'A->1' => ['stats_factory'],
+                              },
+            },
 
-#            {   -logic_name => 'conservation_score_healthcheck',
-#                -module     => 'Bio::EnsEMBL::Compara::RunnableDB::HealthCheck',
-#            },
+            {   -logic_name => 'conservation_score_healthcheck',
+                -module     => 'Bio::EnsEMBL::Compara::RunnableDB::HealthCheck',
+            },
 
             {   -logic_name => 'stats_factory',
                 -module     => 'Bio::EnsEMBL::Compara::RunnableDB::GenomeDBFactory',
@@ -492,7 +499,7 @@ return
                               'bed_dir' => $self->o('bed_dir'),
                               'ensembl_release' => $self->o('ensembl_release'),
                               'output_dir' => $self->o('feature_dumps'),
-                              'mlss_id'   => $self->o('epo_mlss_id'),
+                              'mlss_id'   => '#epo_mlss_id#',
                              },
               -rc_name => 'mem3500',
               -hive_capacity => 100,
@@ -502,7 +509,7 @@ return
         {   -logic_name => 'block_size_distribution',
             -module     => 'Bio::EnsEMBL::Compara::RunnableDB::GenomicAlignBlock::MultipleAlignerBlockSize',
             -parameters => {
-                'mlss_id'   => $self->o('epo_mlss_id'),
+                'mlss_id'   => '#epo_mlss_id#',
                 'compara_db' => $self->pipeline_url,
             },
             -flow_into  => [ 'email_stats_report' ],
@@ -515,7 +522,15 @@ return
                 'email'     => $self->o('epo_stats_report_email'),
                 'subject'   => "EPO Pipeline( #expr(\$self->hive_pipeline->display_name)expr# ) has completed", 
             }
+            -flow_into  => [ 'register_mlss' ],
+        },
 
+        {   -logic_name    => 'register_mlss',
+            -module        => 'Bio::EnsEMBL::Compara::RunnableDB::RegisterMLSS',
+            -parameters    => {
+                'master_db'     => '#compara_master#',
+                'mlss_id'       => '#epo_mlss_id#',
+            },
         },
 
 ];

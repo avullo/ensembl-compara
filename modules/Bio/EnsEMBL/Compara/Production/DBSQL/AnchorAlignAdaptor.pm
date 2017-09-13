@@ -39,7 +39,12 @@ use warnings;
 
 package Bio::EnsEMBL::Compara::Production::DBSQL::AnchorAlignAdaptor;
 
+use strict;
+use warnings;
+
 use Data::Dumper;
+
+use DBI qw(:sql_types);
 
 use Bio::EnsEMBL::Compara::Production::EPOanchors::AnchorAlign;
 
@@ -115,21 +120,6 @@ sub store_exonerate_hits {
         return bulk_insert($self->dbc, 'anchor_align', $batch_records, [qw(method_link_species_set_id anchor_id dnafrag_id dnafrag_start dnafrag_end dnafrag_strand score num_of_organisms num_of_sequences)]);
 }
 
-#=head2 store_new_method_link_species_set_id
-#
-#  Arg[1]     : 
-#  Example    : 
-#  Description: 
-#  Returntype : none
-#  Exceptions : none
-#  Caller     : general
-#
-#=cut
-
-#sub store_new_method_link_species_set_id {
-#	my($self) = @_;
-#	my $insert_sth = "insert into method_link
-
 
 ###############################################################################
 #
@@ -138,66 +128,16 @@ sub store_exonerate_hits {
 ###############################################################################
 
 
-sub fetch_dnafrag_id {
-	my $self = shift;
-	my($coord_sys, $dnafrag_name, $target_genome_db_id) = @_;
-	unless (defined($coord_sys) and defined($dnafrag_name) and defined($target_genome_db_id)) {
-		throw("fetch_dnafrag_id must have a coord_sys, dnafrag_name and target_genome_db_id");
-	}
-	my $query = qq{
-		SELECT dnafrag_id FROM dnafrag WHERE name = ? AND 
-		coord_system_name = ? AND genome_db_id = ?};
-	my $sth = $self->prepare($query);
-	$sth->execute($dnafrag_name, $coord_sys, $target_genome_db_id) or die $self->errstr;
-	while (my$row = $sth->fetchrow_arrayref) {
-		return $row->[0];
-	}
-}
-
-
-##########################
-
-
-sub get_target_file {
-	my $self = shift;
-	my($analysis_data_id, $target_genome_db_id) = @_;
-	my $query = qq{
-		SELECT data FROM analysis_data WHERE analysis_data = ?};
-	my $sth = $self->prepare($query);
-	$sth->execute($analysis_data_id) or die $self->errstr;
-	return $sth->fetchrow_arrayref()->[0]->{target_genomes}->{$target_genome_db_id};
-}
 
 
 
-sub fetch_anchors_by_genomedb_id {
-	my ($self, $genome_db_id) = @_;
-	my $return_hashref;
-	unless (defined $genome_db_id) {
-		throw("fetch_anchors_by_genomedb_id must have an anchor_id and a method_link_species_set_id");
-	}
-
-	my $query = qq{
-		SELECT aa.dnafrag_id, aa.anchor_align_id, aa.anchor_id, 
-		aa.dnafrag_start, aa.dnafrag_end 
-		FROM anchor_align aa INNER JOIN dnafrag df ON 
-		aa.dnafrag_id = df.dnafrag_id WHERE 
-		df.genome_db_id = ? order by aa.dnafrag_id, aa.dnafrag_start};
-	my $sth = $self->prepare($query);
-	$sth->execute($genome_db_id) or die $self->errstr;
-	while (my$row = $sth->fetchrow_arrayref) {
-		push(@{$return_hashref->{$row->[0]}}, [ $row->[1], $row->[2], $row->[3], $row->[4] ]);
-	}
-	return $return_hashref;
-}
 
 =head2 fetch_all_by_anchor_id_and_mlss_id
 
   Arg[1]     : anchor_id, string
   Arg[2]     : method_link_species_set_id, string
-  Example    : my $anchor = $anchor_align_adaptor->fetch_all_by_anchor_id_and_mlss_id($self->input_anchor_id,$self->method_link_species_set_id);
-  Description: returns hashref of cols. from anchor_align table using anchor_align_id as unique hash key
-  Returntype : hashref 
+  Example    : my $anchor_aligns = $anchor_align_adaptor->fetch_all_by_anchor_id_and_mlss_id($self->input_anchor_id,$self->method_link_species_set_id);
+  Returntype : arrayref of AnchorAlign objects
   Exceptions : none
   Caller     : general
 
@@ -208,47 +148,42 @@ sub fetch_all_by_anchor_id_and_mlss_id {
 	unless (defined $anchor_id && defined $method_link_species_set_id) {
 		throw("fetch_all_by_anchor_id_and_mlss_id must have an anchor_id and a method_link_species_set_id");
 	}
-
-	my $query = qq{
-		SELECT anchor_align_id, method_link_species_set_id, anchor_id, 
-		dnafrag_id, dnafrag_start, dnafrag_end, dnafrag_strand, score, 
-		num_of_organisms, num_of_sequences FROM anchor_align WHERE 
-		anchor_id = ? AND method_link_species_set_id = ? AND anchor_status IS NULL};
-	my $sth = $self->prepare($query);
-	$sth->execute($anchor_id, $method_link_species_set_id) or die $self->errstr;
-	return $sth->fetchall_hashref("anchor_align_id");
+        my $constraint = 'anchor_id = ? AND method_link_species_set_id = ?';
+        $self->bind_param_generic_fetch($anchor_id, SQL_INTEGER);
+        $self->bind_param_generic_fetch($method_link_species_set_id, SQL_INTEGER);
+        return $self->generic_fetch($constraint);
 }
 
 
-=head2 update_failed_anchor
+=head2 update_anchor_status
 
-  Arg[1]     : anchor_id, hashref 
-  Arg[2]     : current analysis_id, string
-  Example    : $anchor_align_adaptor->update_failed_anchor($self->input_anchor_id, $self->input_analysis_id);
-  Description: updates anchor_status field, setting it to the current analysis_id, if the anchor fails the filters associated with the analysis_id
+  Arg[1]     : anchor_id, arrayref
+  Arg[2]     : integer: new "anchor_status" value
+  Example    : $anchor_align_adaptor->update_anchor_status($array_of_anchor_ids, 3333);
+  Description: updates anchor_status field
   Returntype : none
   Exceptions : none
   Caller     : general
 
 =cut
 
-sub update_failed_anchor {
-	my($self, $failed_anchor_hash_ref, $analysis_id_which_failed, $test_mlssid) = @_;
-	unless (defined $failed_anchor_hash_ref ){
-		throw( "No failed_anchor_id : update_failed_anchor failed");
+sub update_anchor_status {
+	my($self, $failed_anchor_array_ref, $new_status, $mlssid) = @_;
+	unless (defined $failed_anchor_array_ref){
+		throw( "No failed_anchor_id : update_anchor_status failed");
 	} 
-	unless (defined $analysis_id_which_failed){
-		throw("No analysis_id : update_failed_anchor failed");
+	unless (defined $new_status ){
+		throw("No status : update_anchor_status failed");
 	}
-	unless (defined $test_mlssid) {
-		throw("No test_mlssid : update_failed_anchor failed");
+	unless (defined $mlssid) {
+		throw("No mlssid : update_anchor_status failed");
 	}
 
 	my $update = qq{
 		UPDATE anchor_align SET anchor_status = ? WHERE anchor_id = ? AND method_link_species_set_id = ?};
 	my $sth = $self->prepare($update);
-	foreach my $failed_anchor(%{$failed_anchor_hash_ref}) {
-		$sth->execute($analysis_id_which_failed, $failed_anchor, $test_mlssid) or die $self->errstr;
+	foreach my $failed_anchor(@{$failed_anchor_array_ref}) {
+		$sth->execute($new_status, $failed_anchor, $mlssid) or die $self->errstr;
 	}
 	return 1;
 }
@@ -295,10 +230,9 @@ sub fetch_all_dnafrag_ids {
 #HACK
 
 sub fetch_all_anchors_by_genome_db_id_and_mlssid {
-	my($self, $genome_db_id, $test_mlssid) = @_;
-	unless (defined $genome_db_id && defined $test_mlssid) {
-		throw("fetch_all_anchors_by_dnafrag_id_and_test_mlssid  must 
-			have a genome_db_id and a test_mlssid");
+	my($self, $genome_db_id, $mlssid) = @_;
+	unless (defined $genome_db_id && defined $mlssid) {
+		throw("fetch_all_anchors_by_genome_db_id_and_mlssid must have a genome_db_id and a mlssid");
 	}
 	my $dnafrag_query = qq{
 		SELECT aa.dnafrag_id, aa.anchor_align_id, aa.anchor_id, aa.dnafrag_start, aa.dnafrag_end 
@@ -307,88 +241,8 @@ sub fetch_all_anchors_by_genome_db_id_and_mlssid {
 		WHERE df.genome_db_id = ? AND aa.method_link_species_set_id = ? AND anchor_status 
 		IS NULL ORDER BY dnafrag_start, dnafrag_end};
 	my $sth = $self->prepare($dnafrag_query);
-	$sth->execute($genome_db_id, $test_mlssid) or die $self->errstr;
+	$sth->execute($genome_db_id, $mlssid) or die $self->errstr;
 	return $sth->fetchall_arrayref();
-}
-
-=head2 fetch_all_anchors_by_dnafrag_id_and_test_mlssid 
-
-  Arg[1]     : dnafrag_id, string
-  Example    : 
-  Description: 
-  Returntype : arrayref 
-  Exceptions : none
-  Caller     : general
-
-=cut
-
-sub fetch_all_anchors_by_dnafrag_id_and_test_mlssid {
-	my($self, $dnafrag_id, $test_mlssid) = @_;
-	unless (defined $dnafrag_id && defined $test_mlssid) {
-		throw("fetch_all_anchors_by_dnafrag_id_and_test_mlssid  must 
-			have a dnafrag_id and a test_mlssid");
-	}
-	my $dnafrag_query = qq{
-		SELECT aa.anchor_align_id, aa.anchor_id, aa.dnafrag_start, aa.dnafrag_end FROM anchor_align aa
-		WHERE aa.dnafrag_id = ? AND aa.method_link_species_set_id = ? AND anchor_status 
-		IS NULL ORDER BY dnafrag_start, dnafrag_end};
-	my $sth = $self->prepare($dnafrag_query);
-	$sth->execute($dnafrag_id, $test_mlssid) or die $self->errstr;
-	return $sth->fetchall_arrayref();
-}
-
-=head2 fetch_all_filtered_anchors
-
-  Args       : none
-  Example    : 
-  Description: 
-  Returntype : none
-  Exceptions : none
-  Caller     : general
-
-=cut
-
-sub fetch_all_filtered_anchors {
-	my($self) = @_;
-	my %Return_hash;
-	my $fetch_query = qq{
-		SELECT anchor_id, dnafrag_id, dnafrag_start, dnafrag_end, num_of_sequences, num_of_organisms 
-		FROM anchor_align WHERE anchor_status IS NULL ORDER BY dnafrag_id, dnafrag_start, dnafrag_end};
-
-	my $sth = $self->prepare($fetch_query);
-	$sth->execute() or die $self->errstr;
-	my$array_ref = $sth->fetchall_arrayref();
-	for(my$i=0;$i<@{$array_ref};$i++) {
-		push(@{$Return_hash{$array_ref->[$i]->[1]}}, 
-		[ $array_ref->[$i]->[0], $array_ref->[$i]->[2], $array_ref->[$i]->[3], $array_ref->[$i]->[4], $array_ref->[$i]->[5] ]);
-		# [ anchor_id, dnafrag_start, dnafrag_end, num_of_seqs_that_hit_the_genomic_position, num_of_organisms_from_which_seqs_derived ]
-		splice(@{$array_ref}, $i, 1); #reduce momory used
-		$i--;
-	}
-	return \%Return_hash;
-}
-
-
-=head2 fetch_all_by_MethodLinkSpeciesSet
-
-  Arg [1]    : Bio::EnsEMBL::Compara::MethodLinkSpeciesSet $mlss
-  Example    :
-  Description: Returns all the AnchorAlign obejcts for this MethodLinkSpeciesSet
-  Returntype : listref of Bio::EnsEMBL::Compara::Production::EPOanchors::AnchorAlign objects
-  Exceptions :
-  Caller     : general
-
-=cut
-
-sub fetch_all_by_MethodLinkSpeciesSet {
-  my ($self, $method_link_species_set) = @_;
-
-  assert_ref($method_link_species_set, 'Bio::EnsEMBL::Compara::MethodLinkSpeciesSet', 'method_link_species_set');
-
-  #construct a constraint like 't1.table1_id = 1'
-  my $constraint = "aa.method_link_species_set_id = ". $method_link_species_set->dbID;
-
-  return $self->generic_fetch($constraint);
 }
 
 

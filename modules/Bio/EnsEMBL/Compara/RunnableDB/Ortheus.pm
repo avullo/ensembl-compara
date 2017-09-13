@@ -32,7 +32,7 @@ Bio::EnsEMBL::Compara::RunnableDB::Ortheus
 
 =head1 DESCRIPTION
 
-This module acts as a layer between the Hive system and the Bio::EnsEMBL::Analysis::Runnable::Ortheus
+This module acts as a layer between the Hive system and the Bio::EnsEMBL::Compara::Production::Analysis::Ortheus
 module since the ensembl-analysis API does not know about ensembl-compara
 
 Ortheus wants the files to be provided in the same order as in the tree string. This module starts
@@ -48,11 +48,6 @@ Ortheus also generates a set of aligned ancestral sequences. This module stores 
 
 
 =head1 PARAMETERS
-
-The fetch_input method reads the parameters of the analysis (analysis.parameters) first and then
-the input_id of the analysis job (analysis_job.input_id). Both are expected to be string
-representing hash references like {key1 => "value1", key2 => "value2"}. Values defined in the
-analysis_job.input_id column will overwrite values in the analysis.parameters.
 
 =over 5
 
@@ -70,7 +65,6 @@ Options used to run java eg: '-server -Xmx1000M'
 
 =item * tree_file
 
-FIXME
 Optional. A list of database locations and method_link_species_set_id pairs for the 2X geonome LASTZ_NET alignments. The database locations should be identified using the url format.ie mysql://user:pass\@host:port/db_name.
 
 =item * reference_species 
@@ -101,12 +95,11 @@ use warnings;
 use Data::Dumper;
 use Bio::EnsEMBL::Utils::Exception qw(throw);
 use Bio::EnsEMBL::Utils::SqlHelper;
-use Bio::EnsEMBL::Analysis::Config::Compara; #for $PYTHON and $ORTHEUS and $EXONERATE
-use Bio::EnsEMBL::Analysis::Runnable::Ortheus;
 use Bio::EnsEMBL::Compara::DnaFragRegion;
 use Bio::EnsEMBL::Compara::Graph::NewickParser;
 use Bio::EnsEMBL::Compara::NestedSet;
 use Bio::EnsEMBL::Compara::GenomicAlignGroup;
+use Bio::EnsEMBL::Compara::Production::Analysis::Ortheus;
 
 use base ('Bio::EnsEMBL::Compara::RunnableDB::BaseRunnable');
 
@@ -167,16 +160,20 @@ sub fetch_input {
 
 sub run {
   my $self = shift;
-  my $fake_analysis     = Bio::EnsEMBL::Analysis->new;
 
-  my $runnable = new Bio::EnsEMBL::Analysis::Runnable::Ortheus(
+  my $runnable = new Bio::EnsEMBL::Compara::Production::Analysis::Ortheus(
       -workdir => $self->worker_temp_directory,
       -fasta_files => $self->param('fasta_files'),
       -tree_string => $self->param('tree_string'),
       -species_tree => $self->get_species_tree->newick_format('ryo', '%{^-g}:%{d}'),
       -species_order => $self->param('species_order'),
-      -analysis => $fake_analysis,
       -parameters => $self->param('java_options'),
+      -pecan_exe_dir => $self->param_required('pecan_exe_dir'),
+      -exonerate_exe => $self->param_required('exonerate_exe'),
+      -java_exe =>  $self->param_required('java_exe'),
+      -ortheus_py =>  $self->param_required('ortheus_py'),
+      -ortheus_lib_dir => $self->param_required('ortheus_lib_dir'),
+      -semphy_exe =>  $self->param_required('semphy_exe'),
       -options => $self->param('options'),
       );
   $self->param('runnable', $runnable);

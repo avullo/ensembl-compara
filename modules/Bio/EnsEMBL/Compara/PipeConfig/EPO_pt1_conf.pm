@@ -83,10 +83,7 @@ sub default_options {
       	'chunk_size' => 100000000,
       	# max block size for pecan to align
       	'pecan_block_size' => 1000000,
-      	'pecan_mlid' => 10, # dummy value (change if necessary)
       	'pecan_mlssid' => 10, # dummy value
-      	'gerp_ce_mlid' => 11, # dummy value 
-      	'gerp_ce_mlssid' => 20, # dummy value
 
       	'species_set_id' => 10000, # dummy value for reference and non-reference species
       	'overlaps_mlid' => 10000, # dummy value 
@@ -122,10 +119,7 @@ sub pipeline_wide_parameters {
 		'list_of_pairwise_mlss_ids' => $self->o('list_of_pairwise_mlss_ids'), 		
 		'main_core_dbs' => $self->o('main_core_dbs'),
                 'additional_core_db_urls' => $self->o('additional_core_db_urls'),
-        	'pecan_mlid' => $self->o('pecan_mlid'),
 	        'pecan_mlssid' => $self->o('pecan_mlssid'),
-	        'gerp_ce_mlid' => $self->o('gerp_ce_mlid'),
-		'gerp_ce_mlssid' => $self->o('gerp_ce_mlssid'),
         	'overlaps_mlid' => $self->o('overlaps_mlid'),
         	'overlaps_method_link_name' => $self->o('overlaps_method_link_name'),
 		'overlaps_mlssid' => $self->o('overlaps_mlssid'),
@@ -134,7 +128,6 @@ sub pipeline_wide_parameters {
 		'max_number_of_seqs_per_anchor' => $self->o('max_number_of_seqs_per_anchor'),
 		'max_frag_diff' => $self->o('max_frag_diff'),
 	        'reference_genome_db_id' => $self->o('reference_genome_db_id'),
-		'exonerate' => $self->o('exonerate_exe'),
 	};
 	
 }
@@ -172,10 +165,8 @@ return [
       'INSERT INTO species_set (species_set_id, genome_db_id) SELECT #species_set_id#, genome_db_id FROM genome_db',
       # method_link (ml) and method_link_species_set (mlss) entries for the overlaps, pecan and gerp
       'REPLACE INTO method_link (method_link_id, type) VALUES(#overlaps_mlid#, "#overlaps_method_link_name#")',
-      'REPLACE INTO method_link_species_set (method_link_species_set_id, method_link_id, name, species_set_id) VALUES '
-      .'(#overlaps_mlssid#, #overlaps_mlid#, "get_overlaps", #species_set_id#),'
-      .'(#pecan_mlssid#, #pecan_mlid#, "pecan", #species_set_id#),'
-      .'(#gerp_ce_mlssid#, #gerp_ce_mlid#, "gerp", #species_set_id#)',
+      'REPLACE INTO method_link_species_set (method_link_species_set_id, method_link_id, name, species_set_id) VALUES (#overlaps_mlssid#, #overlaps_mlid#, "get_overlaps", #species_set_id#)',
+      'REPLACE INTO method_link_species_set (method_link_species_set_id, method_link_id, name, species_set_id) SELECT #pecan_mlssid#, method_link_id, "pecan", #species_set_id# FROM method_link WHERE type = "PECAN"',
       ],
  },
  -flow_into => { 
@@ -236,6 +227,13 @@ return [
   'mlss_id' => '#pecan_mlssid#',
   'max_block_size' => $self->o('pecan_block_size'),
   'java_options' => '-server -Xmx1000M',
+  'exonerate_exe'       => $self->o('exonerate_exe'),
+  'pecan_exe_dir'       => $self->o('pecan_exe_dir'),
+  'estimate_tree_exe'   => $self->o('estimate_tree_exe'),
+  'java_exe'            => $self->o('java_exe'),
+  'ortheus_py'          => $self->o('ortheus_py'),
+  'ortheus_lib_dir'     => $self->o('ortheus_lib_dir'),
+  'semphy_exe'          => $self->o('semphy_exe'),
    },
  -flow_into      => {
 		2 => [ 'pecan_high_mem' ],  # Pecan complained
@@ -252,6 +250,13 @@ return [
    'mlss_id' => '#pecan_mlssid#',
    'max_block_size' => $self->o('pecan_block_size'),
    java_options => '-server -Xmx6000M',
+   'exonerate_exe'       => $self->o('exonerate_exe'),
+   'pecan_exe_dir'       => $self->o('pecan_exe_dir'),
+   'estimate_tree_exe'   => $self->o('estimate_tree_exe'),
+   'java_exe'            => $self->o('java_exe'),
+   'ortheus_py'          => $self->o('ortheus_py'),
+   'ortheus_lib_dir'     => $self->o('ortheus_lib_dir'),
+   'semphy_exe'          => $self->o('semphy_exe'),
  },  
  -module => 'Bio::EnsEMBL::Compara::RunnableDB::MercatorPecan::Pecan',
  -hive_capacity => 300,
@@ -266,6 +271,7 @@ return [
  -logic_name    => 'gerp_constrained_element',
  -module => 'Bio::EnsEMBL::Compara::RunnableDB::GenomicAlignBlock::Gerp',
  -parameters    => { 'window_sizes' => [1,10,100,500], 'gerp_exe_dir' => $self->o('gerp_exe_dir'),
+     'constrained_element_method_link_type' => 'PECAN', 'no_conservation_scores' => 1,
 	'program_version' => $self->o('gerp_program_version'), 'mlss_id' => '#pecan_mlssid#', },
  -hive_capacity => 100,
  -batch_size    => 10,
@@ -300,7 +306,7 @@ return [
  -logic_name => 'trim_anchor_align',			
  -module     => 'Bio::EnsEMBL::Compara::Production::EPOanchors::TrimAnchorAlign',
  -parameters => {
-    'input_method_link_species_set_id' => '#gerp_ce_mlssid#',
+    'input_method_link_species_set_id' => '#pecan_mlssid#',
     'output_method_link_species_set_id' => '#overlaps_mlssid#',
     'ortheus_c_exe' => $self->o('ortheus_c_exe'),
   },
@@ -315,7 +321,7 @@ return [
  -logic_name => 'trim_anchor_align_himem',
  -module     => 'Bio::EnsEMBL::Compara::Production::EPOanchors::TrimAnchorAlign',
  -parameters => {
-    'input_method_link_species_set_id' => '#gerp_ce_mlssid#',
+    'input_method_link_species_set_id' => '#pecan_mlssid#',
     'output_method_link_species_set_id' => '#overlaps_mlssid#',
     'ortheus_c_exe' => $self->o('ortheus_c_exe'),
   },

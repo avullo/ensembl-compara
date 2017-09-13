@@ -62,6 +62,7 @@ use strict;
 use warnings;
 
 use Bio::EnsEMBL::Hive::Version 2.4;
+use Bio::EnsEMBL::Hive::PipeConfig::HiveGeneric_conf;   # For INPUT_PLUS
 
 use base ('Bio::EnsEMBL::Compara::PipeConfig::ComparaGeneric_conf');
 
@@ -72,6 +73,8 @@ sub default_options {
     	%{$self->SUPER::default_options},
 
         'pipeline_name' => $self->o('species_set_name').'_epo_anchor_mapping_'.$self->o('rel_with_suffix'),
+
+        'mapping_params'    => { bestn=>11, gappedextension=>"no", softmasktarget=>"no", percent=>75, showalignment=>"no", model=>"affine:local", },
 
     	'anchors_mlss_id' => 10000, # this should correspond to the mlss_id in the anchor_sequence table of the compara_anchor_db database (from EPO_pt1_conf.pm)
     	# 'epo_mlss_id' => 825, # epo mlss from master
@@ -170,7 +173,7 @@ sub pipeline_analyses {
                 -flow_into => {
                     '2->A' => { 'load_genomedb' => { 'master_dbID' => '#genome_db_id#', 'locator' => '#locator#' }, },
                     '1->A' => [ 'populate_compara_tables' ],
-                    'A->1' => [ 'create_reuse_ss' ],
+                    'A->1' => [ 'create_mlss_ss' ],
                 },
             },
 
@@ -204,8 +207,11 @@ sub pipeline_analyses {
                 },
             },
 
-            {   -logic_name => 'create_reuse_ss',
-                -module     => 'Bio::EnsEMBL::Compara::RunnableDB::CreateReuseSpeciesSets',
+            {   -logic_name => 'create_mlss_ss',
+                -module     => 'Bio::EnsEMBL::Compara::RunnableDB::PrepareSpeciesSetsMLSS',
+                -parameters => {
+                    'whole_method_links'    => [ 'MAP_ANCHORS' ],
+                },
                 -flow_into => [ 'reuse_anchor_align_factory' ],
             },
 
@@ -215,7 +221,6 @@ sub pipeline_analyses {
                     'sql' => [
                         # ml and mlss entries for the overlaps, pecan and gerp
                         'REPLACE INTO method_link (method_link_id, type) VALUES(#mapping_method_link_id#, "#mapping_method_link_name#")',
-                        'REPLACE INTO method_link_species_set (method_link_species_set_id, method_link_id, species_set_id) VALUES(#mapping_mlssid#, #mapping_method_link_id#, #species_set_id#)',
                     ]
                 },
             },
@@ -252,7 +257,7 @@ sub pipeline_analyses {
                 -module     => 'Bio::EnsEMBL::Compara::RunnableDB::GenomeDBFactory',
                 -parameters => {
                     'species_set_id'    => '#nonreuse_ss_id#',
-                    'extra_parameters'      => [ 'locator', 'name', 'assembly' ],
+                    'extra_parameters'      => [ 'name', 'assembly' ],
                 },
                 -flow_into => {
                     '2->A' => { 'dump_genome_sequence' => { 'genome_db_name' => '#name#', 'genome_db_assembly' => '#assembly#', 'genome_db_id' => '#genome_db_id#' } },
@@ -263,8 +268,17 @@ sub pipeline_analyses {
 	    {	-logic_name     => 'dump_genome_sequence',
 		-module         => 'Bio::EnsEMBL::Compara::Production::EPOanchors::DumpGenomeSequence',
 		-parameters => {
-			'anc_seq_count_cut_off' => $self->o('anc_seq_count_cut_off'),
 			'only_nuclear_genome' => $self->o('only_nuclear_genome'),
+		},
+		-flow_into => { 1 => {'map_anchors_factory' => INPUT_PLUS() } },
+		-rc_name => 'mem7500',
+		-hive_capacity => 10,
+	    },
+
+	    {	-logic_name     => 'map_anchors_factory',
+		-module         => 'Bio::EnsEMBL::Compara::Production::EPOanchors::MapAnchorsFactory',
+		-parameters     => {
+			'anc_seq_count_cut_off' => $self->o('anc_seq_count_cut_off'),
 			'anchor_batch_size' => $self->o('anchor_batch_size'),
 		},
 		-flow_into => {
@@ -278,6 +292,7 @@ sub pipeline_analyses {
 		-module         => 'Bio::EnsEMBL::Compara::Production::EPOanchors::MapAnchors',
 		-parameters => {
 			'mapping_exe' => $self->o('mapping_exe'),
+	                'mapping_params' => $self->o('mapping_params'),
 		},
                 -flow_into => {
                     -1 => 'map_anchors_himem',
@@ -290,6 +305,7 @@ sub pipeline_analyses {
 		-module         => 'Bio::EnsEMBL::Compara::Production::EPOanchors::MapAnchors',
 		-parameters => {
 			'mapping_exe' => $self->o('mapping_exe'),
+	                'mapping_params' => $self->o('mapping_params'),
 		},
 		-hive_capacity => 1000,
                 -rc_name => 'mem7500',

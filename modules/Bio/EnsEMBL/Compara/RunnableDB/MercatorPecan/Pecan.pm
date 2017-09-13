@@ -58,7 +58,7 @@ Supported keys:
    'java_options' => <options>
       Options used to run Java, ie: '-server -Xmx1000M'
 
-   'exonerate' => <path>
+   'exonerate_exe' => <path>
       Path to exonerate
 
    'max_block_size' => <number>
@@ -82,7 +82,6 @@ package Bio::EnsEMBL::Compara::RunnableDB::MercatorPecan::Pecan;
 use strict;
 use warnings;
 use Bio::EnsEMBL::Utils::Exception qw(throw);
-use Bio::EnsEMBL::Utils::SqlHelper;
 use Bio::EnsEMBL::Compara::Production::Analysis::Pecan;
 use Bio::EnsEMBL::Compara::Production::Analysis::Ortheus;
 use Bio::EnsEMBL::Compara::DnaFragRegion;
@@ -96,6 +95,7 @@ sub param_defaults {
             'trim' => undef,
             'species_order' => undef, #local
             'species_tree' => undef, #local
+            'default_java_class'    => 'bp.pecan.Pecan',
            };
 }
 
@@ -152,7 +152,7 @@ sub run
 #  my $fake_analysis     = Bio::EnsEMBL::Analysis->new;
 
   #Check whether can see exonerate to try to prevent errors in java where the autoloader doesn't seem to always work
-  $self->require_executable('exonerate');
+  $self->require_executable('exonerate_exe');
 
   $self->compara_dba->dbc->disconnect_if_idle;
   my $runnable = new Bio::EnsEMBL::Compara::Production::Analysis::Pecan(
@@ -161,11 +161,11 @@ sub run
       -tree_string => $self->param('pecan_tree_string'),
 #      -analysis => $fake_analysis,
       -parameters => $self->param('java_options'),
-      -exonerate => $self->param('exonerate'),
-      -pecan_jar_file => $self->param('pecan_jar_file'),
-      -pecan_java_class => $self->param('default_java_class'),
-      -estimate_tree => $self->param('estimate_tree'),
-      -java_exe =>  $self->param('java'),
+      -exonerate_exe => $self->param_required('exonerate_exe'),
+      -pecan_exe_dir => $self->param_required('pecan_exe_dir'),
+      -pecan_java_class => $self->param_required('default_java_class'),
+      -estimate_tree_exe => $self->param_required('estimate_tree_exe'),
+      -java_exe =>  $self->param_required('java_exe'),
       );
   $self->param('runnable', $runnable);
 
@@ -794,24 +794,22 @@ sub _run_ortheus {
     my ($self) = @_;
 
     $self->compara_dba->dbc->disconnect_if_idle;
-#    my $fake_analysis     = Bio::EnsEMBL::Analysis->new;
 
     #run Ortheus.py without running MAKE_FINAL_ALIGNMENT ie OrtheusC
     my $options = " -y";
-    my $ortheus_runnable = new Bio::EnsEMBL::Analysis::Runnable::Ortheus(
+    my $ortheus_runnable = new Bio::EnsEMBL::Compara::Production::Analysis::Ortheus(
       -workdir => $self->worker_temp_directory,
       -fasta_files => $self->param('fasta_files'),
       #-tree_string => $self->tree_string,
       -species_tree => $self->get_species_tree->newick_format('ryo', '%{^-g}:%{d}'),
       -species_order => $self->param('species_order'),
-#      -analysis => $fake_analysis,
       -parameters => $self->param('java_options'),
-      -pecan_jar_file => $self->param('jar_file'),
-      -pecan_java_class => $self->param('default_java_class'),
-      -exonerate => $self->param('exonerate'),
-      -java_exe =>  $self->param('java'),
-      -ortheus_exe =>  $self->param('ortheus_exe'),
-      -semphy =>  $self->param('semphy'),
+      -pecan_exe_dir => $self->param_required('pecan_exe_dir'),
+      -exonerate_exe => $self->param_required('exonerate_exe'),
+      -java_exe =>  $self->param_required('java_exe'),
+      -ortheus_py =>  $self->param_required('ortheus_py'),
+      -ortheus_lib_dir => $self->param_required('ortheus_lib_dir'),
+      -semphy_exe =>  $self->param_required('semphy_exe'),
       -options => $options,
       );
 
