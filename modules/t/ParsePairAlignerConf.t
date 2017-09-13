@@ -18,6 +18,7 @@ use strict;
 use warnings;
 
 use Data::Dumper;
+use Bio::EnsEMBL::Hive::AnalysisJob;
 use Bio::EnsEMBL::Hive::Utils::Test qw(standaloneJob);
 use Bio::EnsEMBL::Compara::DBSQL::DBAdaptor;
 use Bio::EnsEMBL::Hive::DBSQL::DBConnection;
@@ -34,7 +35,6 @@ use_ok('Bio::EnsEMBL::Compara::RunnableDB::PairAligner::ParsePairAlignerConf');
 my $multi_db = Bio::EnsEMBL::Test::MultiTestDB->new('parse_pair_aligner_conf');
 my $dba = $multi_db->get_DBAdaptor('compara');
 my $dbc = Bio::EnsEMBL::Hive::DBSQL::DBConnection->new(-dbconn => $dba->dbc);
-my $master_db_url = $dbc->url;
 
 # my $master_db_url = 'mysql://ensadmin:ensembl@mysql-ens-compara-prod-3:4523/parse_pa_conf_test';
 # my $dba = Bio::EnsEMBL::Compara::DBSQL::DBAdaptor->go_figure_compara_dba( $master_db_url );
@@ -51,9 +51,14 @@ my $default_parameters = {
 my $pair_aligner = {};
 $pair_aligner->{'method_link'} = [1001, 'LASTZ_RAW'];
 
-my $pair_aligner_conf = {};
-bless $pair_aligner_conf, "Bio::EnsEMBL::Compara::RunnableDB::PairAligner::ParsePairAlignerConf";
+my $dummy_job = Bio::EnsEMBL::Hive::AnalysisJob->new();
+$dummy_job->param_init( {
+        'default_parameters'    => $default_parameters,
+        'master_db'             => $dbc,    # can be a URL too
+    } );
 
+my $pair_aligner_conf = Bio::EnsEMBL::Compara::RunnableDB::PairAligner::ParsePairAlignerConf->new();
+$pair_aligner_conf->input_job($dummy_job);
 
 # test vertebrate setting
 # dog v cat
@@ -69,8 +74,6 @@ ok($pair_aligner_conf->set_pair_aligner_options(
 	$vert_pa,
 	$dog_gdb,
 	$cat_gdb,
-	$master_db_url,
-	$default_parameters,
 ), 'set_pair_aligner_options method runs for dog v cat');
 
 is_deeply( $vert_pa, $exp_vert_pa, 'correct vertebrate settings registered' );
@@ -89,8 +92,6 @@ ok($pair_aligner_conf->set_pair_aligner_options(
 	$prim_pa,
 	$human_gdb,
 	$chimp_gdb,
-	$master_db_url,
-	$default_parameters,
 ), 'set_pair_aligner_options method runs for human v chimp');
 
 is_deeply( $prim_pa, $exp_prim_pa, 'correct primate settings registered' );
@@ -108,8 +109,6 @@ ok($pair_aligner_conf->set_pair_aligner_options(
 	$ens_pa,
 	$human_gdb,
 	$c_int_gdb,
-	$master_db_url,
-	$default_parameters,
 ), 'set_pair_aligner_options method runs for human v ciona');
 
 is_deeply( $ens_pa, $exp_ens_pa, 'correct ensembl-wide settings registered' );
